@@ -17,27 +17,12 @@ namespace CsPhysics.CelestialMechanics
         private readonly IThreeBodyMass _secondMass;
         private readonly IThreeBodyMass _thirdMass;
 
-        // this will need to be maintained in the IThreeBodyMass instance for the third body
-        private readonly IVector _thirdMassInitialState;
-
         // cached values
-        private bool _useCachedTotalMass = false;
-        private bool _useCachedPeriod = false;
-        private bool _useCachedMu = false;
-        private bool _useCachedOmega = false;
-        private bool _useCachedScaledRadius1 = false;
-        private bool _useCachedScaledRadius2 = false;
         private bool _useCachedL1 = false;
         private bool _useCachedL2 = false;
         private bool _useCachedL3 = false;
         private bool _useCachedL4 = false;
         private bool _useCachedL5 = false;
-        private double _cachedTotalMass = 0.0;
-        private double _cachedPeriod = 0.0;
-        private double _cachedMu = 0.0;
-        private double _cachedOmega = 0.0;
-        private double _cachedScaledRadius1 = 0.0;
-        private double _cachedScaledRadius2 = 0.0;
         private IVector _cachedL1;
         private IVector _cachedL2;
         private IVector _cachedL3;
@@ -49,61 +34,59 @@ namespace CsPhysics.CelestialMechanics
             _firstMass = firstMass;
             _secondMass = secondMass;
             _thirdMass = thirdMass;
-            _distanceBetweenM1M2 = distanceBetweenM1M2;
+
+            // initialize properties of the three-body system
+            DistanceBetweenM1M2 = distanceBetweenM1M2;
+            TotalMass = _firstMass.Mass + _secondMass.Mass + _thirdMass.Mass;
+            var g = InternalConstants.GravitationalConstant;
+            var r = _distanceBetweenM1M2;
+            var m = TotalMass;
+            Period = Math.Sqrt( Math.Pow(r, 3.0) / (g*m) );
+            Mu = _secondMass.Mass / TotalMass;
+            Omega = 2 * Math.PI / Period;
+            FirstMassScaledRadius = _firstMass.Radius / DistanceBetweenM1M2;
+            SecondMassScaledRadius = _secondMass.Radius / DistanceBetweenM1M2;
+
+            // initialize the position and velocity states of the two main bodies
+            //
+            // the third body's state may be initialized prior to passing it into
+            // this constructor, or once the system has been constructed but before
+            // any trajectory computations are performed
+            _firstMass.Position = new Vector(new[] { -Mu, 0.0 });
+            _firstMass.Velocity = new Vector(new[] { 0.0, (-Mu*Omega) });
+            _secondMass.Position = new Vector(new[] { (1.0-Mu), 0.0 });
+            _secondMass.Velocity = new Vector(new[] { 0.0, (1-Mu)*Omega });
         }
 
         public IThreeBodyMass FirstMass { get { return _firstMass; } }
         public IThreeBodyMass SecondMass { get { return _secondMass; } }
         public IThreeBodyMass ThirdMass { get { return _thirdMass; } }
 
-        public double DistanceBetweenM1M2 { get { return _distanceBetweenM1M2; } }
-
         public string FirstMassName { get { return _firstMass.Name; } }
         public string SecondMassName { get { return _secondMass.Name; } }
 
+        public double DistanceBetweenM1M2
+        {
+            get;
+            private set;
+        }
+
         public double TotalMass
         {
-            get
-            {
-                if (!_useCachedTotalMass)
-                {
-                    _cachedTotalMass = _firstMass.Mass + _secondMass.Mass + _thirdMass.Mass;
-                    _useCachedTotalMass = true;
-                }
-
-                return _cachedTotalMass;
-            }
+            get;
+            private set;
         }
 
         public double Period
         {
-            get
-            {
-                if (!_useCachedPeriod)
-                {
-                    var g = InternalConstants.GravitationalConstant;
-                    var r = _distanceBetweenM1M2;
-                    var m = TotalMass;
-                    _cachedPeriod = Math.Sqrt( Math.Pow(r, 3.0) / (g*m) );
-                    _useCachedPeriod = true;
-                }
-
-                return _cachedPeriod;
-            }
+            get;
+            private set;
         }
 
         public double Mu
         {
-            get
-            {
-                if (!_useCachedMu)
-                {
-                    _cachedMu = _secondMass.Mass / TotalMass;
-                    _useCachedMu = true;
-                }
-
-                return _cachedMu;
-            }
+            get;
+            private set;
         }
 
         /// <summary>
@@ -111,44 +94,20 @@ namespace CsPhysics.CelestialMechanics
         /// </summary>
         public double Omega
         {
-            get
-            {
-                if (!_useCachedOmega)
-                {
-                    _cachedOmega = 2 * Math.PI / Period;
-                    _useCachedOmega = true;
-                }
-
-                return _cachedOmega;
-            }
+            get;
+            private set;
         }
 
         public double FirstMassScaledRadius
         {
-            get
-            {
-                if (!_useCachedScaledRadius1)
-                {
-                    _cachedScaledRadius1 = _secondMass.Radius / _distanceBetweenM1M2;
-                    _useCachedScaledRadius1 = true;
-                }
-
-                return _cachedScaledRadius1;
-            }
+            get;
+            private set;
         }
 
         public double SecondMassScaledRadius
         {
-            get
-            {
-                if (!_useCachedScaledRadius2)
-                {
-                    _cachedScaledRadius2 = _secondMass.Radius / _distanceBetweenM1M2;
-                    _useCachedScaledRadius2 = true;
-                }
-
-                return _cachedScaledRadius2;
-            }
+            get;
+            private set;
         }
 
         private IVector ComputeLagrangePointOne()
